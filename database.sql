@@ -1,4 +1,4 @@
-MPLE DATA NOT FOR USE!
+-- EXAMPLE DATA NOT FOR USE!
 
 -- phpMyAdmin SQL Dump
 -- version 4.6.6deb4
