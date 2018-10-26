@@ -19,7 +19,7 @@ class pointLocation {
  
         // Check if the point sits exactly on a vertex
         if ($this->pointOnVertex == true and $this->pointOnVertex($point, $vertices) == true) {
-            return flse;
+            return false;
         }
  
         // Check if the point is inside the polygon or on the boundary
@@ -172,7 +172,7 @@ function getHoodByGeo($lat, $lon)
 
     // load hoods from DB
     try {
-        $q = 'SELECT ' . hood_mysql_fields . ' FROM hoods;';
+        $q = 'SELECT * FROM hoods;';
         $rs = db::getInstance()->prepare($q);
         $rs->execute();
     } catch (PDOException $e) {
@@ -205,7 +205,7 @@ function getHoodByGeo($lat, $lon)
 function getTrainstation()
 {
     try {
-        $q = 'SELECT ' . hood_mysql_fields . ' FROM hoods WHERE ID="0";';
+        $q = 'SELECT * FROM hoods WHERE ID="0";';
         $rs = db::getInstance()->prepare($q);
         $rs->execute();
     } catch (PDOException $e) {
