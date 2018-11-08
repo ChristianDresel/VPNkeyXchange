@@ -7,54 +7,58 @@
  * @author Mose <mose@fabfolk.com>
  * @author Christian Dresel <fff@chrisi01.de>
  * @author Dennis Eisold <fff@itstall.de>
+ * @author Adrian Schmutzler <freifunk@adrianschmutzler.de>
  *
  * @license https://www.gnu.org/licenses/agpl-3.0.txt AGPL-3.0
  */
 
-include("function.php");
+require "function.php";
 
 const DEBUG = false;
 
-$lat = $_GET['lat'];
-$lon = $_GET['long'];
 $hood = array();
 
-if (isset($lat) && $lat !== "" && isset($lon) && $lon !== "" && is_numeric($lat) && is_numeric($lon)) {
-	#zuerst nach geojson hood prüfen 
+if (isset($_GET['lat']) && $_GET['lat'] !== "" && isset($_GET['long']) && $_GET['long'] !== "" && is_numeric($_GET['lat']) && is_numeric($_GET['long'])) {
+	$lat = $_GET['lat'];
+	$lon = $_GET['long'];
+
+	// Zuerst nach geojson hood pruefen
 	$pointLocation = new pointLocation();
-	#zuerst Anzal Polyhoods zählen:
+
+	// First only retrieve list of polyids
 	try {
-		$rc = db::getInstance()->prepare("SELECT DISTINCT polyid FROM polyhood");
+		$rc = db::getInstance()->prepare("SELECT DISTINCT polyid, hoodid FROM polyhood");
 		$rc->execute();
 	} catch (PDOException $e) {
 		exit(showError(500, $e));
 	}
-	$result = $rc->fetchAll();
+	$allpoly = $rc->fetchAll(); // list of polyids
+
 	// Abfrage der Polygone ob eins passt
-	foreach($result as $row) {
+	foreach($allpoly as $row) {
 		try {
-			$rs = db::getInstance()->prepare("SELECT * FROM polyhood WHERE polyid=:polyid");
+			$rs = db::getInstance()->prepare("SELECT lat, lon FROM polyhood WHERE polyid=:polyid");
 			$rs->bindParam(':polyid', $row['polyid']);
 			$rs->execute();
 		} catch (PDOException $e) {
 			exit(showError(500, $e));
 		}
-		$polygon = array();
-		// return results in a easy parsable way
-		while ($result = $rs->fetch(PDO::FETCH_ASSOC)) {
-			$polygeo = ''.$result["lon"].' '.$result["lat"].'';
-			debug($polygeo);
-			array_push($polygon, $polygeo);
-			$hoodid = $result['hoodid'];
+
+		// create array of polygons
+		$polygons = array(); // list of polygons (array(lng,lat)) for the current polyid
+		while ($polygeo = $rs->fetch(PDO::FETCH_ASSOC)) {
+			debug('lon: '.$polygeo["lon"].' lat: '.$polygeo["lat"]);
+			array_push($polygons, array($polygeo["lon"],$polygeo["lat"]));
 		}
-		$point = "$lon $lat";
-		debug("point " . ($key + 1) . " ($point): " . $pointLocation->pointInPolygon($point, $polygon) . "<br>");
-		if ($pointLocation->pointInPolygon($point, $polygon)) {
+
+		$point = array($lon,$lat); // coordinates of router
+		$inside = $pointLocation->pointInPolygon($point, $polygons);
+		debug("point $lon $lat: " . $inside . "<br>");
+		if ($inside) {
 			debug("PolyHood gefunden...");
-			$found = 1;
 			try {
-				$rs = db::getInstance()->prepare("SELECT * FROM hoods WHERE id=:hoodid;");
-				$rs->bindParam(':hoodid', $hoodid, PDO::PARAM_INT);
+				$rs = db::getInstance()->prepare("SELECT ".hood_mysql_fields." FROM hoods WHERE id=:hoodid;");
+				$rs->bindParam(':hoodid', $row['hoodid'], PDO::PARAM_INT);
 				$rs->execute();
 			} catch (PDOException $e) {
 				exit(showError(500, $e));
@@ -63,16 +67,17 @@ if (isset($lat) && $lat !== "" && isset($lon) && $lon !== "" && is_numeric($lat)
 			break;
 		}
 	}
+
 	// danach voronoi wenn keine PolyHood gefunden wurde
-	if (!$found) {
+	if (empty($hood)) {
 		debug("Searching a hood on " . $lat . " " . $lon . ":");
 		$hood = getHoodByGeo($lat, $lon);
-		$hoodid = $hood['ID'];
 		if (!empty($hood)) {
 			debug($hood);
 		}
 	}
 }
+
 if (empty($hood)) { 
 	debug("No hood found, using Trainstaion:");
 	$hood = getTrainstation();
@@ -83,13 +88,13 @@ $json = array();
 $json['version'] = 1;
 $json['network'] = array('ula_prefix' => $hood['prefix']);
 $json['vpn'] = getAllVPNs($hood['ID']);
+unset($hood['ID']);
+unset($hood['prefix']);
 
 $hood['location'] = array('lat' => $hood['lat'], 'lon' => $hood['lon']);
 unset($hood['lat']);
 unset($hood['lon']);
 
-unset($hood['ID']);
-unset($hood['prefix']);
 $json['hood'] = $hood;
 
 echo json_encode($json);

@@ -1,69 +1,91 @@
 <?php
 
-//Quelle: https://gist.github.com/jeremejazz/5219848
+const hood_mysql_fields = '
+	ID,
+	name,
+	ESSID_AP as essid,
+	BSSID_MESH as mesh_bssid,
+	ESSID_MESH as mesh_essid,
+	mesh_id,
+	protocol,
+	channel2,
+	mode2,
+	mesh_type2,
+	channel5,
+	mode5,
+	mesh_type5,
+	upgrade_path,
+	ntp_ip,
+	UNIX_TIMESTAMP(changedOn) as timestamp,
+	prefix, lat, lon
+';
+
 class pointLocation {
-    var $pointOnVertex = true; // Check if the point sits exactly on one of the vertices?
- 
-    function pointLocation() {
-    }
- 
+// Original version: https://gist.github.com/jeremejazz/5219848
+// Modified by Adrian Schmutzler, 2018.
+
     function pointInPolygon($point, $polygon, $pointOnVertex = true) {
-        $this->pointOnVertex = $pointOnVertex;
- 
-        // Transform string coordinates into arrays with x and y values
-        $point = $this->pointStringToCoordinates($point);
-        $vertices = array(); 
-        foreach ($polygon as $vertex) {
-            $vertices[] = $this->pointStringToCoordinates($vertex); 
+
+        // Support both string version "lng lat" and array(lng,lat)
+        if(!is_array($point)) {
+            $point = $this->pointStringToCoordinates($point);
         }
- 
+
+        $vertices = array();
+        foreach ($polygon as $vertex) {
+            if(is_array($vertex)) {
+                $vertices[] = $vertex;
+            } else {
+                $vertices[] = $this->pointStringToCoordinates($vertex);
+            }
+        }
+
         // Check if the point sits exactly on a vertex
-        if ($this->pointOnVertex == true and $this->pointOnVertex($point, $vertices) == true) {
+        if ($pointOnVertex and $this->pointOnVertex($point, $vertices)) {
             return false;
         }
- 
+
         // Check if the point is inside the polygon or on the boundary
-        $intersections = 0; 
-        $vertices_count = count($vertices);
- 
-        for ($i=1; $i < $vertices_count; $i++) {
-            $vertex1 = $vertices[$i-1]; 
+        $intersections = 0;
+
+        for ($i=1; $i < count($vertices); $i++) {
+            $vertex1 = $vertices[$i-1];
             $vertex2 = $vertices[$i];
-            if ($vertex1['y'] == $vertex2['y'] and $vertex1['y'] == $point['y'] and $point['x'] > min($vertex1['x'], $vertex2['x']) and $point['x'] < max($vertex1['x'], $vertex2['x'])) { // Check if point is on an horizontal polygon boundary
+            if ($vertex1[1] == $vertex2[1] and $vertex1[1] == $point[1]
+                and $point[0] > min($vertex1[0], $vertex2[0]) and $point[0] < max($vertex1[0], $vertex2[0]))
+            { // Check if point is on an horizontal polygon boundary
                 return false;
             }
-            if ($point['y'] > min($vertex1['y'], $vertex2['y']) and $point['y'] <= max($vertex1['y'], $vertex2['y']) and $point['x'] <= max($vertex1['x'], $vertex2['x']) and $vertex1['y'] != $vertex2['y']) { 
-                $xinters = ($point['y'] - $vertex1['y']) * ($vertex2['x'] - $vertex1['x']) / ($vertex2['y'] - $vertex1['y']) + $vertex1['x']; 
-                if ($xinters == $point['x']) { // Check if point is on the polygon boundary (other than horizontal)
+            if ($point[1] > min($vertex1[1], $vertex2[1]) and $point[1] <= max($vertex1[1], $vertex2[1])
+                and $point[0] <= max($vertex1[0], $vertex2[0]) and $vertex1[1] != $vertex2[1])
+            {
+                $xinters = ($point[1] - $vertex1[1]) * ($vertex2[0] - $vertex1[0]) / ($vertex2[1] - $vertex1[1]) + $vertex1[0];
+                if ($xinters == $point[0]) { // Check if point is on the polygon boundary (other than horizontal)
                     return false;
                 }
-                if ($vertex1['x'] == $vertex2['x'] || $point['x'] <= $xinters) {
-                    $intersections++; 
+                if ($vertex1[0] == $vertex2[0] || $point[0] <= $xinters) {
+                    $intersections++;
                 }
-            } 
-        } 
-        // If the number of edges we passed through is odd, then it's in the polygon. 
-        if ($intersections % 2 != 0) {
-            return true;
-        } else {
-            return false;
+            }
         }
+        // If the number of edges we passed through is odd, then it's in the polygon.
+        return ($intersections % 2 != 0);
     }
- 
+
     function pointOnVertex($point, $vertices) {
         foreach($vertices as $vertex) {
-            if ($point == $vertex) {
+            if ($point == $vertex) { // works for arrays
                 return true;
             }
         }
- 
+        return false;
     }
- 
+
     function pointStringToCoordinates($pointString) {
         $coordinates = explode(" ", $pointString);
-        return array("x" => $coordinates[0], "y" => $coordinates[1]);
+        return array($coordinates[0],$coordinates[1]);
     }
- 
+
 }
 
 function debug($msg)
@@ -172,7 +194,7 @@ function getHoodByGeo($lat, $lon)
 
     // load hoods from DB
     try {
-        $q = 'SELECT * FROM hoods;';
+        $q = 'SELECT '.hood_mysql_fields.' FROM hoods;';
         $rs = db::getInstance()->prepare($q);
         $rs->execute();
     } catch (PDOException $e) {
@@ -193,7 +215,7 @@ function getHoodByGeo($lat, $lon)
         debug('distance: $distance');
 
         if ($distance <= $current_hood_dist) {
-            debug('Node belongs to Hood ' . $result['ID'] . '(' . $result['name'] . ')');
+            debug('Shorter distance found for hood ' . $result['ID'] . '(' . $result['name'] . ')');
             $current_hood_dist = $distance;
             $best_result = $result;
         }
@@ -205,7 +227,7 @@ function getHoodByGeo($lat, $lon)
 function getTrainstation()
 {
     try {
-        $q = 'SELECT * FROM hoods WHERE ID="0";';
+        $q = 'SELECT '.hood_mysql_fields.' FROM hoods WHERE ID="0";';
         $rs = db::getInstance()->prepare($q);
         $rs->execute();
     } catch (PDOException $e) {
@@ -219,9 +241,9 @@ function getAllVPNs($hoodId)
 {
     $ret = array();
 
-    // return either all all gateways from the hood
+    // return all gateways in the hood
     try {
-        $sql = 'SELECT g.name, "fastd" AS protocol, g.ip AS address, g.port, g.key
+        $sql = 'SELECT g.name, "fastd" AS protocol, g.ip AS address, g.port, g.publickey AS key
             FROM gateways AS g WHERE hood_ID=:hood;';
         $rs = db::getInstance()->prepare($sql);
         $rs->bindParam(':hood', $hoodId);
@@ -237,17 +259,21 @@ function getAllVPNs($hoodId)
 
 function getPolyhoods()
 {
-	try {
-        $rs = db::getInstance()->query("SELECT * FROM polyhood;");
+    try {
+        $rs = db::getInstance()->query("SELECT polyid, lat, lon, hoodid FROM polyhood;");
         $rs->execute();
     } catch (PDOException $e) {
         exit(showError(500, $e));
     }
-	$result = $rs->fetchall(PDO::FETCH_ASSOC);
-	foreach($result as $row) {
-		$return[$row['hoodid']][] = array('lat' => $row['lat'], 'lon' => $row['lon']);
-	}
-	return $return;
+    $result = $rs->fetchall(PDO::FETCH_ASSOC);
+    $return = array();
+    foreach($result as $row) {
+        if(!isset($return[$row['hoodid']])) {
+            $return[$row['hoodid']] = array();
+        }
+        $return[$row['hoodid']][] = array('polygon' => $row['polyid'], 'lat' => $row['lat'], 'lon' => $row['lon']);
+    }
+    return $return;
 }
 
 ?>
