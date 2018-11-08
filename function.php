@@ -167,17 +167,16 @@ const EARTH_RADIUS = 6371;
  */
 function distance_haversine($lat1, $lon1, $lat2, $lon2)
 {
-    $delta_lat = $lat1 - $lat2;
-    $delta_lon = $lon1 - $lon2;
-    $alpha = $delta_lat / 2;
-    $sin_alpha_2 = sin_d($alpha) * sin_d($alpha);
-    $beta = $delta_lon / 2;
-    $sin_beta_2 = sin_d($beta) * sin_d($beta);
-    $a = $sin_alpha_2 + cos_d($lat1) * cos_d($lat2) * $sin_beta_2;
+    $alpha = ($lat1 - $lat2) * 0.5;
+    $beta = ($lon1 - $lon2) * 0.5;
+    $sin_alpha = sin_d($alpha);
+    $sin_beta = sin_d($beta);
+
+    $a = $sin_alpha * $sin_alpha + cos_d($lat1) * cos_d($lat2) * $sin_beta * $sin_beta;
     $c = asin(min(1, sqrt($a)));
     $distance = 2 * EARTH_RADIUS * $c;
-    $distance = round($distance, 3);
-    return $distance;
+
+    return round($distance, 3);
 }
 
 /**
@@ -194,7 +193,7 @@ function getHoodByGeo($lat, $lon)
 
     // load hoods from DB
     try {
-        $q = 'SELECT '.hood_mysql_fields.' FROM hoods;';
+        $q = 'SELECT '.hood_mysql_fields.' FROM hoods WHERE lat IS NOT NULL AND lon IS NOT NULL;';
         $rs = db::getInstance()->prepare($q);
         $rs->execute();
     } catch (PDOException $e) {
@@ -203,13 +202,7 @@ function getHoodByGeo($lat, $lon)
 
     // check for every hood if it's nearer than the hood before
     while ($result = $rs->fetch(PDO::FETCH_ASSOC)) {
-        debug("\n\nhood: " . $result['name']);
-
-        if (is_null($result['lat']) || is_null($result['lon'])) {
-            continue;
-        }
-
-        debug('hoodCenterLat: ' . $result['lat'] . ', hoodCenterLon: ' . $result['lon'] . ', hoodID: ' . $result['ID']);
+        debug("\n\nhood: " . $result['name'] . ', CenterLat: ' . $result['lat'] . ', hoodCenterLon: ' . $result['lon'] . ', hoodID: ' . $result['ID']);
 
         $distance = distance_haversine($result['lat'], $result['lon'], $lat, $lon);
         debug('distance: $distance');
@@ -243,8 +236,8 @@ function getAllVPNs($hoodId)
 
     // return all gateways in the hood
     try {
-        $sql = 'SELECT g.name, "fastd" AS protocol, g.ip AS address, g.port, g.publickey AS "key"
-            FROM gateways AS g WHERE hood_ID=:hood;';
+        $sql = "SELECT g.name, 'fastd' AS protocol, g.ip AS address, g.port, g.publickey AS 'key'
+            FROM gateways AS g WHERE hood_ID=:hood;";
         $rs = db::getInstance()->prepare($sql);
         $rs->bindParam(':hood', $hoodId);
         $rs->execute();

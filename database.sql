@@ -16,7 +16,7 @@ SET time_zone = "+00:00";
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8 */;
 
 --
 -- Database: `keyxchange`
@@ -25,43 +25,16 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `cache`
---
-
-CREATE TABLE `cache` (
-  `lat` double NOT NULL,
-  `lon` double NOT NULL,
-  `hoodid` int(10) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
---
--- Dumping data for table `cache`
---
-
-INSERT INTO `cache` (`lat`, `lon`, `hoodid`) VALUES
-(49.618443, 11.327268, 31),
-(49.618443, 11.327269, 31),
-(49.618443, 11.327265, 31),
-(49.618443, 11.327267, 31),
-(49.618443, 10.327267, 14),
-(49.618443, 11.32726, 31),
-(49.618443, 11.3272, 31),
-(49.618443, 11.5272, 22),
-(49.618443, 11.52726, 22);
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `gateways`
 --
 
 CREATE TABLE `gateways` (
-  `ID` int(10) UNSIGNED NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `key` varchar(255) NOT NULL,
-  `ip` varchar(255) NOT NULL,
-  `port` smallint(5) UNSIGNED NOT NULL,
-  `hood_ID` int(10) UNSIGNED NOT NULL DEFAULT '1',
+  `ID` int(10) unsigned NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `publickey` char(64) NOT NULL,
+  `ip` char(15) NOT NULL,
+  `port` smallint(5) unsigned NOT NULL,
+  `hood_ID` int(10) unsigned NOT NULL DEFAULT '1',
   `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -69,7 +42,7 @@ CREATE TABLE `gateways` (
 -- Dumping data for table `gateways`
 --
 
-INSERT INTO `gateways` (`ID`, `name`, `key`, `ip`, `port`, `hood_ID`, `timestamp`) VALUES
+INSERT INTO `gateways` (`ID`, `name`, `publickey`, `ip`, `port`, `hood_ID`, `timestamp`) VALUES
 (2, 'vm3fffgwcd1', '373cf6dca701a8b1516b816a13c91dc9df29ac5a822d12331b503982d655399b', '144.76.70.186', 10007, 0, '2017-09-27 07:15:09'),
 (7, 'fff-nue2-gw2', '07be3d18b703e6e040a6920afb3e226ded6aa474961d8eecbb77b623bdd21059', '81.95.4.187', 10000, 2, '2017-10-28 05:45:51'),
 (8, 'vm3fffgwcd1', '373cf6dca701a8b1516b816a13c91dc9df29ac5a822d12331b503982d655399b', '144.76.70.186', 10006, 1, '2017-09-27 07:15:09'),
@@ -86,25 +59,25 @@ INSERT INTO `gateways` (`ID`, `name`, `key`, `ip`, `port`, `hood_ID`, `timestamp
 --
 
 CREATE TABLE `hoods` (
-  `ID` int(10) UNSIGNED NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `net` varchar(255) NOT NULL,
+  `ID` int(10) unsigned NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `net` char(18) NOT NULL,
   `lat` double DEFAULT NULL,
   `lon` double DEFAULT NULL,
-  `prefix` varchar(255) NOT NULL,
-  `ntp_ip` varchar(255) NOT NULL,
+  `prefix` varchar(50) NOT NULL,
+  `ntp_ip` varchar(50) NOT NULL,
   `ESSID_AP` varchar(32) NOT NULL,
   `ESSID_MESH` varchar(32) NOT NULL,
   `BSSID_MESH` varchar(17) NOT NULL,
   `mesh_id` varchar(32) NOT NULL,
   `protocol` varchar(50) NOT NULL DEFAULT 'batman-adv-v15',
-  `channel2` int(11) NOT NULL DEFAULT '13',
-  `mode2` varchar(30) NOT NULL DEFAULT 'ht20',
-  `mesh_type2` varchar(30) NOT NULL DEFAULT '802.11s',
-  `channel5` int(11) NOT NULL DEFAULT '40',
-  `mode5` varchar(30) NOT NULL DEFAULT 'ht20',
-  `mesh_type5` varchar(30) NOT NULL DEFAULT '802.11s',
-  `upgrade_path` varchar(255) NOT NULL,
+  `channel2` tinyint(3) unsigned NOT NULL DEFAULT '13',
+  `mode2` char(4) NOT NULL DEFAULT 'ht20',
+  `mesh_type2` varchar(10) NOT NULL DEFAULT '802.11s',
+  `channel5` tinyint(3) unsigned NOT NULL DEFAULT '40',
+  `mode5` char(5) NOT NULL DEFAULT 'ht20',
+  `mesh_type5` varchar(10) NOT NULL DEFAULT '802.11s',
+  `upgrade_path` varchar(50) NOT NULL,
   `changedOn` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -126,31 +99,31 @@ INSERT INTO `hoods` (`ID`, `name`, `net`, `lat`, `lon`, `prefix`, `ntp_ip`, `ESS
 --
 
 CREATE TABLE `polyhood` (
-  `id` int(10) NOT NULL,
-  `polyid` int(10) NOT NULL,
-  `lat` varchar(50) NOT NULL,
-  `lon` varchar(50) NOT NULL,
-  `hoodid` int(10) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `ID` int(10) unsigned NOT NULL,
+  `polyid` int(10) unsigned NOT NULL,
+  `lat` double NOT NULL,
+  `lon` double NOT NULL,
+  `hoodid` int(10) unsigned NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
 -- Dumping data for table `polyhood`
 --
 
-INSERT INTO `polyhood` (`id`, `polyid`, `lat`, `lon`, `hoodid`) VALUES
-(18, 1, '49.58982152', '10.99503994', 31),
-(19, 1, '49.58940422', '11.01199150', 31),
-(20, 1, '49.59685950', '11.01787090', 31),
-(21, 1, '49.60270052', '11.01722717', 31),
-(22, 1, '49.60712255', '10.99988937', 31),
-(23, 1, '49.58982152', '10.99503994', 31),
-(24, 2, '49.46979740', '11.01302147', 32),
-(25, 2, '49.47983623', '10.99259377', 32),
-(26, 2, '49.48569126', '10.98083496', 32),
-(27, 2, '49.45546063', '10.97740173', 32),
-(28, 2, '49.44798376', '10.99851608', 32),
-(29, 2, '49.45395418', '11.00915909', 32),
-(30, 2, '49.46979740', '11.01302147', 32);
+INSERT INTO `polyhood` (`ID`, `polyid`, `lat`, `lon`, `hoodid`) VALUES
+(18, 1, 49.58982152, 10.99503994, 31),
+(19, 1, 49.58940422, 11.01199150, 31),
+(20, 1, 49.59685950, 11.01787090, 31),
+(21, 1, 49.60270052, 11.01722717, 31),
+(22, 1, 49.60712255, 10.99988937, 31),
+(23, 1, 49.58982152, 10.99503994, 31),
+(24, 2, 49.46979740, 11.01302147, 32),
+(25, 2, 49.47983623, 10.99259377, 32),
+(26, 2, 49.48569126, 10.98083496, 32),
+(27, 2, 49.45546063, 10.97740173, 32),
+(28, 2, 49.44798376, 10.99851608, 32),
+(29, 2, 49.45395418, 11.00915909, 32),
+(30, 2, 49.46979740, 11.01302147, 32);
 
 --
 -- Indexes for dumped tables
@@ -160,21 +133,21 @@ INSERT INTO `polyhood` (`id`, `polyid`, `lat`, `lon`, `hoodid`) VALUES
 -- Indexes for table `gateways`
 --
 ALTER TABLE `gateways`
-  ADD PRIMARY KEY (`ID`),
-  ADD KEY `ID` (`ID`);
+ ADD PRIMARY KEY (`ID`),
+ ADD KEY `hood_ID` (`hood_ID`);
 
 --
 -- Indexes for table `hoods`
 --
 ALTER TABLE `hoods`
-  ADD PRIMARY KEY (`ID`),
-  ADD UNIQUE KEY `ID` (`ID`);
+ ADD PRIMARY KEY (`ID`);
 
 --
 -- Indexes for table `polyhood`
 --
 ALTER TABLE `polyhood`
-  ADD PRIMARY KEY (`id`);
+ ADD PRIMARY KEY (`ID`),
+ ADD KEY `polyid` (`polyid`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -184,19 +157,17 @@ ALTER TABLE `polyhood`
 -- AUTO_INCREMENT for table `gateways`
 --
 ALTER TABLE `gateways`
-  MODIFY `ID` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
+  MODIFY `ID` int(10) unsigned NOT NULL AUTO_INCREMENT;
 --
 -- AUTO_INCREMENT for table `polyhood`
 --
 ALTER TABLE `polyhood`
-  MODIFY `id` int(10) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `id` int(10) unsigned NOT NULL AUTO_INCREMENT;
+
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 
 --- Updates for productive database
-ALTER TABLE `hoods` ADD INDEX `coords` (`lat`, `lon`);
-ALTER TABLE `gateways` ADD INDEX(`hood_ID`);
-ALTER TABLE `cache` ADD INDEX (`hoodid`);
-ALTER TABLE `cache` ADD INDEX (`lat`, `lon`);
-ALTER TABLE `polyhood` ADD INDEX(`polyid`);
+
+-- ALTER TABLE `hoods` CHANGE `key` `publickey` char(64) NOT NULL;
