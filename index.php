@@ -21,44 +21,64 @@ $hood = array();
 if (isset($_GET['lat']) && $_GET['lat'] !== "" && isset($_GET['long']) && $_GET['long'] !== "" && is_numeric($_GET['lat']) && is_numeric($_GET['long'])) {
 	$lat = $_GET['lat'];
 	$lon = $_GET['long'];
+	$point = array($lon,$lat); // coordinates of router
 
 	// Zuerst nach geojson hood pruefen
 	$pointLocation = new pointLocation();
 
 	// First only retrieve list of polyids
 	try {
-		$rc = db::getInstance()->prepare("SELECT DISTINCT polyid, hoodid FROM polyhood");
+		$rc = db::getInstance()->prepare("
+			SELECT polyhoods.polyid, hoodid, MIN(lat) AS minlat, MIN(lon) AS minlon, MAX(lat) AS maxlat, MAX(lon) AS maxlon
+			FROM polyhoods INNER JOIN polygons ON polyhoods.polyid = polygons.polyid
+			GROUP BY polyid, hoodid
+		"); // This query will automatically exclude polyhoods being present in polyhoods table, but without vertices in polygons table
 		$rc->execute();
 	} catch (PDOException $e) {
 		exit(showError(500, $e));
 	}
-	$allpoly = $rc->fetchAll(); // list of polyids
 
-	// Abfrage der Polygone ob eins passt
-	foreach($allpoly as $row) {
-		try {
-			$rs = db::getInstance()->prepare("SELECT lat, lon FROM polyhood WHERE polyid=:polyid");
-			$rs->bindParam(':polyid', $row['polyid']);
-			$rs->execute();
-		} catch (PDOException $e) {
-			exit(showError(500, $e));
+	// Set up all polygons, but do it without vertex coordinates
+	$polystore = array();
+	while($row = $rc->fetch(PDO::FETCH_ASSOC)) {
+		$polystore[$row['polyid']] = $row;
+		$polystore[$row['polyid']]['data'] = array(); // prepare array for vertex coordinates
+	}
+
+	// Now query the coordinates, all in one query
+	try {
+		$rc = db::getInstance()->prepare("SELECT polyid, lat, lon FROM polygons");
+		$rc->execute();
+	} catch (PDOException $e) {
+		exit(showError(500, $e));
+	}
+
+	// Write polygon coordinates into array
+	while($row = $rc->fetch(PDO::FETCH_ASSOC)) {
+		if(!isset($polystore[$row['polyid']])) {
+			debug('Database inconsistent: No polyhood defined for ID '.$row['polyid']);
+			continue; // Skip those orphaned vertex entries
 		}
+		$polystore[$row['polyid']]['data'][] = array($row["lon"],$row["lat"]);
+		debug('lon: '.$row["lon"].' lat: '.$row["lat"]);
+	}
 
-		// create array of polygons
-		$polygons = array(); // list of polygons (array(lng,lat)) for the current polyid
-		while ($polygeo = $rs->fetch(PDO::FETCH_ASSOC)) {
-			debug('lon: '.$polygeo["lon"].' lat: '.$polygeo["lat"]);
-			array_push($polygons, array($polygeo["lon"],$polygeo["lat"]));
+	// Interpret polygon data
+	foreach($polystore as $polygon) {
+		// First check whether point coordinates are outside the most extreme values for lat/lng
+		$exclude = $pointLocation->excludePolygon($point, $polygon['minlon'], $polygon['maxlon'], $polygon['minlat'], $polygon['maxlat']);
+		if ($exclude) {
+			debug("polygon #" . $polygon['polyid'] . " excluded<br>");
+			continue;
 		}
-
-		$point = array($lon,$lat); // coordinates of router
-		$inside = $pointLocation->pointInPolygon($point, $polygons);
-		debug("point $lon $lat: " . $inside . "<br>");
+		// Now really check whether point is inside polygon
+		$inside = $pointLocation->pointInPolygon($point, $polygon['data']);
+		debug("point in polygon #" . $polygon['polyid'] . ": " . $inside . "<br>");
 		if ($inside) {
 			debug("PolyHood gefunden...");
 			try {
 				$rs = db::getInstance()->prepare("SELECT ".hood_mysql_fields." FROM hoods WHERE id=:hoodid;");
-				$rs->bindParam(':hoodid', $row['hoodid'], PDO::PARAM_INT);
+				$rs->bindParam(':hoodid', $polygon['hoodid'], PDO::PARAM_INT);
 				$rs->execute();
 			} catch (PDOException $e) {
 				exit(showError(500, $e));
