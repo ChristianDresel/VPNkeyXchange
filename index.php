@@ -47,7 +47,7 @@ if (isset($_GET['lat']) && $_GET['lat'] !== "" && isset($_GET['long']) && $_GET[
 
 	// Now query the coordinates, all in one query
 	try {
-		$rc = db::getInstance()->prepare("SELECT polyid, lat, lon FROM polygons");
+		$rc = db::getInstance()->prepare("SELECT polyid, lat, lon FROM polygons ORDER BY ID ASC");
 		$rc->execute();
 	} catch (PDOException $e) {
 		exit(showError(500, $e));
@@ -59,7 +59,7 @@ if (isset($_GET['lat']) && $_GET['lat'] !== "" && isset($_GET['long']) && $_GET[
 			debug('Database inconsistent: No polyhood defined for ID '.$row['polyid']);
 			continue; // Skip those orphaned vertex entries
 		}
-		$polystore[$row['polyid']]['data'][] = array($row["lon"],$row["lat"]);
+		$polystore[$row['polyid']]['data'][] = array(floatval($row["lon"]),floatval($row["lat"]));
 		debug('lon: '.$row["lon"].' lat: '.$row["lat"]);
 	}
 
@@ -72,6 +72,7 @@ if (isset($_GET['lat']) && $_GET['lat'] !== "" && isset($_GET['long']) && $_GET[
 			continue;
 		}
 		// Now really check whether point is inside polygon
+		$polygon['data'][] = $polygon['data'][0]; // Add first point as last point (= close polygon)
 		$inside = $pointLocation->pointInPolygon($point, $polygon['data']);
 		debug("point in polygon #" . $polygon['polyid'] . ": " . $inside . "<br>");
 		if ($inside) {
