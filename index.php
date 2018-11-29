@@ -111,7 +111,6 @@ $json['network'] = array('ula_prefix' => $hood['prefix']);
 $json['vpn'] = getAllVPNs($hood['id']);
 unset($hood['prefix']);
 
-$hood['location'] = array('lat' => $hood['lat'], 'lon' => $hood['lon']);
 unset($hood['lat']);
 unset($hood['lon']);
 
